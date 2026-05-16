@@ -1,0 +1,75 @@
+services:
+
+  # ─── PostgreSQL ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:17
+    container_name: drcp-identity-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "${DB_PORT}:5432"
+    volumes:
+      - drcp-postgres-data:/var/lib/postgresql/data
+    networks:
+      - drcp-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  # ─── Keycloak ──────────────────────────────────────────────────────────────
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0.4
+    container_name: drcp-keycloak
+    restart: unless-stopped
+    command: start-dev --health-enabled=true
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/${DB_NAME}
+      KC_DB_USERNAME: ${DB_USER}
+      KC_DB_PASSWORD: ${DB_PASSWORD}
+      KC_HOSTNAME: localhost
+      KC_HTTP_PORT: ${KEYCLOAK_PORT}
+      KEYCLOAK_ADMIN: ${KEYCLOAK_USER}
+      KEYCLOAK_ADMIN_PASSWORD: ${KEYCLOAK_PASSWORD}
+    ports:
+      - "${KEYCLOAK_PORT}:${KEYCLOAK_PORT}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - drcp-net
+
+  # ─── Identity Quarkus Microservice ─────────────────────────────────────────
+  identity-service:
+    build:
+      context: .
+      dockerfile: src/main/docker/Dockerfile.jvm
+    container_name: drcp-identity-service
+    restart: unless-stopped
+    environment:
+      QUARKUS_DATASOURCE_JDBC_URL: jdbc:postgresql://postgres:5432/${IDENTITY_SVC_DB_NAME}
+      QUARKUS_DATASOURCE_USERNAME: ${DB_USER}
+      QUARKUS_DATASOURCE_PASSWORD: ${DB_PASSWORD}
+      QUARKUS_OIDC_AUTH_SERVER_URL: http://keycloak:${KEYCLOAK_PORT}/realms/${KEYCLOAK_REALM}
+      QUARKUS_OIDC_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+    ports:
+      - "${IDENTITY_SERVICE_PORT}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - drcp-net
+
+networks:
+  drcp-net:
+    driver: bridge
+
+volumes:
+  drcp-postgres-data:
+    name: drcp-postgres-data
