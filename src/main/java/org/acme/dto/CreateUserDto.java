@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 
 public record CreateUserDto(
+        @NotBlank String username,
         @NotBlank String firstName,
         @NotBlank String lastName,
         @Email @NotBlank String email,

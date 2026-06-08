@@ -1,5 +1,6 @@
 package org.acme.service;
 
+import jakarta.ws.rs.BadRequestException;
 import org.acme.dto.CreateUserDto;
 import org.acme.dto.UpdateUserDto;
 import org.acme.dto.UserDto;
@@ -18,17 +19,16 @@ import java.util.List;
 @ApplicationScoped
 public class UserAdminService {
 
-    @Inject
-    Keycloak keycloak;
-
     @ConfigProperty(name = "keycloak.admin.target-realm")
     String targetRealm;
+
+    @Inject
+    Keycloak keycloak;
 
     private RealmResource realm() {
         return keycloak.realm(targetRealm);
     }
 
-    // ── Map Keycloak user to DTO ───────────────────────────────────────────
     private UserDto toDto(UserRepresentation user) {
         List<String> roles = realm().users()
                 .get(user.getId())
@@ -50,7 +50,6 @@ public class UserAdminService {
         );
     }
 
-    // ── Get all users ──────────────────────────────────────────────────────
     public List<UserDto> getAllUsers() {
         return realm().users().list()
                 .stream()
@@ -58,7 +57,6 @@ public class UserAdminService {
                 .toList();
     }
 
-    // ── Get single user ────────────────────────────────────────────────────
     public UserDto getUserById(String id) {
         try {
             UserRepresentation user = realm().users().get(id).toRepresentation();
@@ -68,7 +66,6 @@ public class UserAdminService {
         }
     }
 
-    // ── Create user ────────────────────────────────────────────────────────
     public UserDto createUser(CreateUserDto dto) {
         UserRepresentation user = new UserRepresentation();
         user.setEmail(dto.email());
@@ -76,9 +73,8 @@ public class UserAdminService {
         user.setLastName(dto.lastName());
         user.setEnabled(true);
         user.setEmailVerified(true);
-        user.setUsername(dto.email()); // use email as username
+        user.setUsername(dto.username());
 
-        // Set password
         CredentialRepresentation credential = new CredentialRepresentation();
         credential.setType(CredentialRepresentation.PASSWORD);
         credential.setValue(dto.password());
@@ -86,29 +82,30 @@ public class UserAdminService {
         user.setCredentials(List.of(credential));
 
         var response = realm().users().create(user);
+
         String userId = response.getLocation().getPath()
                 .replaceAll(".*/([^/]+)$", "$1");
 
-        // Assign roles
         if (dto.roles() != null && !dto.roles().isEmpty()) {
             assignRoles(userId, dto.roles());
+        } else {
+            assignRoles(userId, List.of("RESPONDER"));
         }
 
         return getUserById(userId);
     }
 
-    // ── Update user ────────────────────────────────────────────────────────
     public UserDto updateUser(String id, UpdateUserDto dto) {
         var userResource = realm().users().get(id);
         UserRepresentation user = userResource.toRepresentation();
 
+        if (dto.email() != null) user.setEmail(dto.email());
         if (dto.firstName() != null) user.setFirstName(dto.firstName());
         if (dto.lastName() != null) user.setLastName(dto.lastName());
         user.setEnabled(dto.enabled());
 
         userResource.update(user);
 
-        // Sync roles — remove all then reassign
         if (dto.roles() != null) {
             List<RoleRepresentation> currentRoles = userResource.roles()
                     .realmLevel().listEffective().stream()
@@ -123,16 +120,35 @@ public class UserAdminService {
         return getUserById(id);
     }
 
-    // ── Delete user ────────────────────────────────────────────────────────
     public void deleteUser(String id) {
         realm().users().delete(id);
     }
 
-    // ── Assign roles helper ────────────────────────────────────────────────
-    private void assignRoles(String userId, List<String> roleNames) {
-        List<RoleRepresentation> roles = roleNames.stream()
-                .map(name -> realm().roles().get(name).toRepresentation())
+    public void assignRoles(String userId, List<String> roleNames) {
+        var userResource = realm().users().get(userId);
+
+        List<RoleRepresentation> currentRoles = userResource.roles()
+                .realmLevel().listEffective().stream()
+                .filter(r -> !r.getName().startsWith("default-roles")
+                        && !r.getName().equals("offline_access")
+                        && !r.getName().equals("uma_authorization"))
                 .toList();
-        realm().users().get(userId).roles().realmLevel().add(roles);
+
+        List<RoleRepresentation> newRoles = roleNames.stream()
+                .map(roleName -> {
+                    try {
+                        return realm().roles().get(roleName).toRepresentation();
+                    } catch (Exception e) {
+                        throw new BadRequestException("Role does not exist: " + roleName);
+                    }
+                })
+                .toList();
+
+        if (roleNames.size() == 1) {
+            userResource.roles().realmLevel().remove(currentRoles);
+            userResource.roles().realmLevel().add(newRoles);
+        } else {
+            userResource.roles().realmLevel().add(newRoles);
+        }
     }
 }

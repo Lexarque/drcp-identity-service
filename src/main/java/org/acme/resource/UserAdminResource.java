@@ -1,8 +1,6 @@
 package org.acme.resource;
 
-import org.acme.dto.CreateUserDto;
-import org.acme.dto.UpdateUserDto;
-import org.acme.dto.UserDto;
+import org.acme.dto.*;
 import org.acme.service.UserAdminService;
 import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
@@ -28,26 +26,43 @@ public class UserAdminResource {
 
     @GET
     @Path("/{id}")
-    public UserDto getUserById(@PathParam("id") String id) {
-        return userAdminService.getUserById(id);
+    public Response getUserById(@PathParam("id") String id) {
+        return Response.ok()
+                .entity(ApiResponse.of(200, "User updated successfully", userAdminService.getUserById(id)))
+                .build();
     }
 
     @POST
     public Response createUser(@Valid CreateUserDto dto) {
         UserDto created = userAdminService.createUser(dto);
-        return Response.status(Response.Status.CREATED).entity(created).build();
+        return Response.ok()
+                .entity(ApiResponse.of(201, "User created successfully", created))
+                .build();
     }
 
     @PUT
     @Path("/{id}")
-    public UserDto updateUser(@PathParam("id") String id, @Valid UpdateUserDto dto) {
-        return userAdminService.updateUser(id, dto);
+    public Response updateUser(@PathParam("id") String id, @Valid UpdateUserDto dto) {
+        return Response.ok()
+                .entity(ApiResponse.of(200, "User updated successfully", userAdminService.updateUser(id, dto)))
+                .build();
     }
 
     @DELETE
     @Path("/{id}")
     public Response deleteUser(@PathParam("id") String id) {
         userAdminService.deleteUser(id);
-        return Response.noContent().build();
+        return Response.ok()
+                .entity(ApiResponse.of(200, "User deleted successfully"))
+                .build();
+    }
+
+    @POST
+    @Path("/{id}/roles")
+    public Response assignRoleToUser(@PathParam("id") String id, @Valid AssignRolesDto dto) {
+        userAdminService.assignRoles(id, dto.roles());
+        return Response.ok()
+                .entity(ApiResponse.of(200, "Role assigned to user successfully"))
+                .build();
     }
 }
