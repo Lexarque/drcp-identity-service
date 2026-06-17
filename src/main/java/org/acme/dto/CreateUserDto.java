@@ -2,7 +2,7 @@ package org.acme.dto;
 
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
-import java.util.List;
+import org.acme.enums.Role;
 
 public record CreateUserDto(
         @NotBlank String username,
@@ -10,5 +10,5 @@ public record CreateUserDto(
         @NotBlank String lastName,
         @Email @NotBlank String email,
         @NotBlank String password,
-        List<String> roles
+        Role role
 ) {}

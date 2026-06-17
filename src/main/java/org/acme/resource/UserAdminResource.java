@@ -8,6 +8,8 @@ import jakarta.validation.Valid;
 import jakarta.ws.rs.*;
 import jakarta.ws.rs.core.MediaType;
 import jakarta.ws.rs.core.Response;
+import org.acme.shared.dto.ApiResponse;
+
 import java.util.List;
 
 @Path("/admin/users")
@@ -60,7 +62,7 @@ public class UserAdminResource {
     @POST
     @Path("/{id}/roles")
     public Response assignRoleToUser(@PathParam("id") String id, @Valid AssignRolesDto dto) {
-        userAdminService.assignRoles(id, dto.roles());
+        userAdminService.assignRole(id, dto.role());
         return Response.ok()
                 .entity(ApiResponse.of(200, "Role assigned to user successfully"))
                 .build();

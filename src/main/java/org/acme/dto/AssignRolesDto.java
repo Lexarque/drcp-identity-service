@@ -1,10 +1,9 @@
 package org.acme.dto;
 
 import jakarta.validation.constraints.NotEmpty;
-
-import java.util.List;
+import org.acme.enums.Role;
 
 public record AssignRolesDto(
         @NotEmpty(message = "Roles list cannot be empty")
-        List<String> roles
+        Role role
 ) {}

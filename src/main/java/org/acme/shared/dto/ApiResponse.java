@@ -1,4 +1,4 @@
-package org.acme.dto;
+package org.acme.shared.dto;
 
 public record ApiResponse<T>(
         int status,
