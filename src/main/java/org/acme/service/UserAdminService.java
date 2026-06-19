@@ -19,18 +19,23 @@ public class UserAdminService extends SharedService {
     public UserDto createUser(CreateUserDto dto) {
         UserRepresentation user = getUserRepresentation(dto);
 
-        var response = realm().users().create(user);
+        try (var response = realm().users().create(user)) {
 
-        String userId = response.getLocation().getPath()
-                .replaceAll(".*/([^/]+)$", "$1");
+            if (response.getStatus() != 201) {
+                String errorMessage = response.readEntity(String.class);
+                throw new RuntimeException("Failed to create user in Keycloak. Status: " + response.getStatus() + ", Error: " + errorMessage);
+            }
 
-        if (dto.role() != null) {
-            assignRole(userId, dto.role());
-        } else {
-            assignRole(userId, Role.valueOf("VICTIM"));
+            String userId = response.getLocation().getPath().replaceAll(".*/([^/]+)$", "$1");
+
+            if (dto.role() != null) {
+                assignRole(userId, dto.role());
+            } else {
+                assignRole(userId, Role.VICTIM);
+            }
+
+            return getUserById(userId);
         }
-
-        return getUserById(userId);
     }
 
     private static @NonNull UserRepresentation getUserRepresentation(CreateUserDto dto) {
