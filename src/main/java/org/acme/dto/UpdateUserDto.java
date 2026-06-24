@@ -6,6 +6,6 @@ public record UpdateUserDto(
         String email,
         String firstName,
         String lastName,
-        boolean enabled,
+        Boolean enabled,
         Role role
 ) {}

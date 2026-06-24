@@ -62,7 +62,6 @@ public class UserAdminService extends SharedService {
         if (dto.email() != null) user.setEmail(dto.email());
         if (dto.firstName() != null) user.setFirstName(dto.firstName());
         if (dto.lastName() != null) user.setLastName(dto.lastName());
-        user.setEnabled(dto.enabled());
 
         userResource.update(user);
 
