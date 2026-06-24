@@ -34,10 +34,9 @@ public class UserAuthenticationService extends SharedService {
         String userId = response.getLocation().getPath()
                 .replaceAll(".*/([^/]+)$", "$1");
 
-        // use the enum name directly — guaranteed to be RESPONDER or VICTIM
         assignRole(userId, Role.valueOf(dto.role() != null
                 ? dto.role().name()
-                : Role.RESPONDER.name()));  // default to RESPONDER if not provided
+                : Role.RESPONDER.name()));
 
         return getUserById(userId);
     }
